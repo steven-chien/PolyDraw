@@ -1,8 +1,11 @@
 <html>
 	<head>
-		<script type="text/css">
-
-		</script>
+		<style>
+			body {
+				margin: 0;
+				overflow: hidden;
+			}
+		</style>
 
 		<script src="gl-matrix.js" type="text/javascript"></script>
 
@@ -21,7 +24,6 @@
 			varying highp vec4 vColor;
 
 			void main(void) {
-				//gl_Position = vec4(aVertexPosition, 1.0);
 				gl_PointSize = 10.0;
 				gl_Position = vec4(aVertexPosition, 1.0);
 				vColor = vec4(aVertexColor, 1.0);
@@ -33,6 +35,8 @@
 			var canvas, ctx;
 			drawingMode = true;
 			editingMode = false;
+
+			/* list of vertices for webGL and vertex accounting */
 			var vertices = [];
 			var vertexList = [];
 
@@ -50,7 +54,12 @@
 					glPosY = (((canvas.height - (event.clientY - canvas.offsetTop - window.pageYOffset)) / canvas.height) - 0.5) * 2.0;
 					vertices.push(glPosX, glPosY, 0.0);
 					vertexList.push([glPosX, glPosY, 0.0]);
-					drawPoints();
+
+					/* draw point being clicked */
+					updateWebGL();
+					updateVertexBuffer();
+					updateColorBuffer([1.0, 1.0, 1.0]);
+					drawScene(gl.POINTS);
 				}
 			}
 
@@ -60,24 +69,35 @@
 					case 27:
 						/* Esc key */
 						if(checkPolygon()) {
+							/* update states */
 							editingMode = false;
 							drawingMode = false;
-							drawPolygon();
+
+							/* clear canvas, bind vertex and color buffer, draw points and polygon */
+							updateWebGL();
+							updateVertexBuffer();
+							updateColorBuffer([1.0, 0.0, 0.0]);
+							drawScene(gl.TRIANGLE_FAN);
+							updateColorBuffer([0.0, 1.0, 0.0]);
+							drawScene(gl.POINTS);
 						}
 						else {
+							/* fail to pass simple polygon validity check, alert user, clear list and clear canvas */
 							alert("Polygon invalid!");
 							vertices = [];
 							vertexList = [];
-							drawPoints();
+							updateWebGL();
 						}
 						break;
 					case 68:
 						/* d key, drawing mode */
 						editingMode = false;
 						drawingMode = true;
+
+						/* initialize canvas, clear vertex list and clear canvas */
 						vertices = [];
 						vertexList = [];
-						drawPoints();
+						updateWebGL();
 						break;
 					case 86:
 						/* e key, reposition mode */
@@ -85,28 +105,32 @@
 						drawingMode = false;
 						break;
 				}
-				console.log(event.keyCode);
 			}
 
 
 			/* initialize shader programs */
 			function initShaders() {
+				/* create vertex and fragment shaders */
 				vertexShader = gl.createShader(gl.VERTEX_SHADER);
 				fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 
+				/* bind shader to glsl */
 				gl.shaderSource(vertexShader, document.getElementById("shader-vs").innerHTML);
 				gl.shaderSource(fragmentShader, document.getElementById("shader-fs").innerHTML);
 
+				/* compile and check vertex shader */
 				gl.compileShader(vertexShader);
 				if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
 					alert("Cannot compile vertex shader!");
 				}
 
+				/* compile and check fragment shader */
 				gl.compileShader(fragmentShader);
 				if(!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
 					alert("Cannot compile fragment shader!");
 				}
 
+				/* create GL program and link shaders */
 				glProgram = gl.createProgram();
 
 				gl.attachShader(glProgram, vertexShader);
@@ -130,19 +154,21 @@
 				polygonVertexColorBuffer = gl.createBuffer();
 			}
 
-			/* update buffer */
-			function updateBuffers() {
+			/* update vertex buffer */
+			function updateVertexBuffer() {
 				/* populate vertex position buffer with vertext list */
 				gl.bindBuffer(gl.ARRAY_BUFFER, polygonVertexPositionBuffer);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 				polygonVertexPositionBuffer.itemSize = 3;
 				polygonVertexPositionBuffer.numItem = vertices.length / polygonVertexPositionBuffer.itemSize;
+			}
 
+			/* update color buffer */
+			function updateColorBuffer(rgb) {
 				/* generate color for each vertex */
 				var colors = [];
-				for(var i=0; i<polygonVertexPositionBuffer.numItem; i++) {
-					colors.push(1.0, 0.0, 0.0, 1.0);
-				}
+				for(var i=0; i<polygonVertexPositionBuffer.numItem; i++)
+					colors.push(rgb[0], rgb[1], rgb[2], 1.0);
 
 				/* populate vertex color buffer with color list */
 				gl.bindBuffer(gl.ARRAY_BUFFER, polygonVertexColorBuffer);
@@ -151,7 +177,7 @@
 				polygonVertexColorBuffer.numItem = colors.length / polygonVertexColorBuffer.itemSize;
 			}
 
-			/* setup viewport and clear view port */
+			/* setup viewport and clear view port with black */
 			function updateWebGL() {
 				gl.viewport(0, 0, canvas.width, canvas.height);
 				gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -230,24 +256,23 @@
 				return true;
 			}
 
-			function drawPolygon() {
-				updateWebGL();
-				updateBuffers();
+			/* on window size */
+			function windowResizeHandler() {
+				console.log("resize");
+				init();
+				updateVertexBuffer();
+				updateColorBuffer([1.0, 0.0, 0.0]);
 				drawScene(gl.TRIANGLE_FAN);
+				updateColorBuffer([0.0, 1.0, 0.0]);
 				drawScene(gl.POINTS);
 			}
 
-			function drawPoints() {
-				updateWebGL();
-				updateBuffers();
-				drawScene(gl.POINTS);
-			}
-
+			/* on load */
 			function init() {
 				/* get canvas and WebGL context */
 				canvas = document.getElementById("test-canvas");
-				canvas.width = document.body.offsetWidth;
-				canvas.height = document.body.offsetHeight;
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
 				gl = canvas.getContext("experimental-webgl");
 
 				/* Browser does not support WebGL */
@@ -263,10 +288,12 @@
 				/* add event listeners for mouse-click and keydown */
 				canvas.addEventListener("click", onClickHandler);
 				window.addEventListener("keydown", onKeydownHandler);
+				window.addEventListener("resize", windowResizeHandler);
 			}
+
 		</script>
 	</head>
-	<body onload="init()">
+	<body height="100%" onload="init()">
 		<canvas id="test-canvas" width="100%" height="100%"></canvas>
 	</body>
 </html>
