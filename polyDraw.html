@@ -7,7 +7,7 @@
 			}
 		</style>
 
-		<script src="gl-matrix.js" type="text/javascript"></script>
+		<script src="FileSaver.min.js" type="text/javascript"></script>
 
 		<script id="shader-fs" type="x-shader/x-fragment">
 			varying highp vec4 vColor;
@@ -99,12 +99,17 @@
 						vertexList = [];
 						updateWebGL();
 						break;
+					case 83:
+						var blob = new Blob([vertexList], {type: "text/plain;charset=utf-8"});
+						saveAs(blob, "polygon.txt");
+						break;
 					case 86:
 						/* e key, reposition mode */
 						editingMode = true;
 						drawingMode = false;
 						break;
 				}
+				console.log(event.keyCode);
 			}
 
 
