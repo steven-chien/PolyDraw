@@ -166,8 +166,13 @@
 						updateWebGL();
 						break;
 					case 83:
-						var blob = new Blob([vertexList], {type: "text/plain;charset=utf-8"});
-						saveAs(blob, "polygon.txt");
+						if(checkPolygon()) {
+							var blob = new Blob([vertexList], {type: "text/plain;charset=utf-8"});
+							saveAs(blob, "polygon.txt");
+						}
+						else {
+							alert("Invalid polygon!");
+						}
 						break;
 					case 86:
 						/* e key, reposition mode */
