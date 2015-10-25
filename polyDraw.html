@@ -35,10 +35,12 @@
 			var canvas, ctx;
 			drawingMode = true;
 			editingMode = false;
+			dragging = null;
 
 			/* list of vertices for webGL and vertex accounting */
 			var vertices = [];
 			var vertexList = [];
+			var vertexRaw = [];
 
 			/* WebGL control */
 			var gl = null, glProgram = null;
@@ -54,6 +56,7 @@
 					glPosY = (((canvas.height - (event.clientY - canvas.offsetTop - window.pageYOffset)) / canvas.height) - 0.5) * 2.0;
 					vertices.push(glPosX, glPosY, 0.0);
 					vertexList.push([glPosX, glPosY, 0.0]);
+					vertexRaw.push([event.clientX, event.clientY, 0.0]);
 
 					/* draw point being clicked */
 					updateWebGL();
@@ -63,12 +66,71 @@
 				}
 			}
 
+			/* key down listener */
+			function onMouseDownHandler(event) {
+				if(editingMode) {
+					console.log("mouse down "+event.clientX+" "+event.clientY);
+					for(var i=0; i<vertexRaw.length; i++) {
+						if(event.clientX>(vertexRaw[i][0]-5.0) && event.clientX<(vertexRaw[i][0]+5.0) &&
+								(event.clientY>(vertexRaw[i][1]-5.0) && (event.clientY<vertexRaw[i][1]+5.0))) {
+							dragging=i;
+							break;
+						}
+					}
+					console.log(dragging);
+				}
+			}
+
+			/* drag */
+			function onMouseMoveHandler(event) {
+				if(editingMode && dragging!=null) {
+					/* record new canvas position */
+					vertexRaw[dragging][0] = event.clientX;
+					vertexRaw[dragging][1] = event.clientY;
+
+					/* calcaulate relative position in viewport coord system, push to vertex list */
+		   			vertexList[dragging][0] = (((event.clientX - canvas.offsetLeft - window.pageXOffset) / canvas.width) - 0.5) * 2.0;
+					vertexList[dragging][1] = (((canvas.height - (event.clientY - canvas.offsetTop - window.pageYOffset)) / canvas.height) - 0.5) * 2.0;
+
+					/* update WebGL vertex position buffer */
+					vertices = [];
+					for(var i=0; i<vertexList.length; i++) {
+						vertices.push(vertexList[i][0], vertexList[i][1], 0.0);
+					}
+					updateWebGL();
+					updateVertexBuffer();
+					updateColorBuffer([0.0, 1.0, 0.0]);
+					drawScene(gl.POINTS);
+				}
+			}
+
+			/* mouse up handler */
+			function onMouseUpHandler(event) {
+				if(editingMode && dragging!=null) {
+					console.log("onMouseUpHandler");
+					dragging = null;
+					console.log("dragging "+dragging);
+				}
+			}
+
 			/* Key press handler */
 			function onKeydownHandler(event) {
 				switch(event.keyCode) {
 					case 27:
 						/* Esc key */
-						if(checkPolygon()) {
+						if(!editingMode && !drawingMode) {
+							/* terminate program by removing all event listeners */
+							canvas.removeEventListener("click", onClickHandler);
+							canvas.removeEventListener("mousedown", onMouseDownHandler);
+							canvas.removeEventListener("mousemove", onMouseMoveHandler);
+							canvas.removeEventListener("mouseup", onMouseUpHandler);
+
+							window.removeEventListener("keydown", onKeydownHandler);
+							window.removeEventListener("resize", windowResizeHandler);
+
+							alert("Program terminated!");
+						}
+						else if(checkPolygon()) {
 							/* update states */
 							editingMode = false;
 							drawingMode = false;
@@ -84,8 +146,11 @@
 						else {
 							/* fail to pass simple polygon validity check, alert user, clear list and clear canvas */
 							alert("Polygon invalid!");
+							editingMode = false;
+							drawingMode = true;
 							vertices = [];
 							vertexList = [];
+							vertexRaw = [];
 							updateWebGL();
 						}
 						break;
@@ -97,6 +162,7 @@
 						/* initialize canvas, clear vertex list and clear canvas */
 						vertices = [];
 						vertexList = [];
+						vertexRaw = [];
 						updateWebGL();
 						break;
 					case 83:
@@ -107,7 +173,11 @@
 						/* e key, reposition mode */
 						editingMode = true;
 						drawingMode = false;
+						updateWebGL();
+						updateVertexBuffer();
+						drawScene(gl.POINTS);
 						break;
+
 				}
 				console.log(event.keyCode);
 			}
@@ -292,6 +362,10 @@
 
 				/* add event listeners for mouse-click and keydown */
 				canvas.addEventListener("click", onClickHandler);
+				canvas.addEventListener("mousedown", onMouseDownHandler);
+				canvas.addEventListener("mousemove", onMouseMoveHandler);
+				canvas.addEventListener("mouseup", onMouseUpHandler);
+
 				window.addEventListener("keydown", onKeydownHandler);
 				window.addEventListener("resize", windowResizeHandler);
 			}
