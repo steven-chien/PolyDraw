@@ -187,11 +187,18 @@
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight * 0.95;
 
+				/* get WebGL context */
 				gl = canvas.getContext("experimental-webgl");
 				if (!gl) {
 					return;
 				}
 
+				/* clear screen */
+				gl.viewport(0, 0, canvas.width, canvas.height);
+				gl.clearColor(0.0, 0.0, 0.0, 1.0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+
+				/* install event listener to open file */
 				document.getElementById("file-input").addEventListener("change", fileUploadHandler, false);
 			}
 
@@ -199,6 +206,6 @@
 	</head>
 	<body onload="init()">
 		<canvas id="test-canvas"></canvas>
-		<input type="file" id="file-input" />
+		<input type="file" id="file-input">Click "Choose File" and pick the filed saved by polyDraw.html</input>
 	</body>
 </html>
