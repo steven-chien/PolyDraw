@@ -10,14 +10,14 @@
 		</style>
 
 		<script id="shader-vs" type="x-shader/x-vertex">
-			attribute vec3 a_position;
-			attribute vec2 a_texCoord;
-			uniform vec2 u_resolution;
-			varying vec2 v_texCoord;
+			attribute vec3 aVertexPosition;
+			attribute vec2 aTexturePosition;
+			uniform vec2 uResolution;
+			varying vec2 vTexturePosition;
 
 			void main() {
-				gl_Position = vec4(a_position, 1.0);
-				v_texCoord = a_texCoord;
+				gl_Position = vec4(aVertexPosition, 1.0);
+				vTexturePosition = aTexturePosition;
 				gl_PointSize = 10.0;
 			}
 		</script>
@@ -26,40 +26,30 @@
 			precision mediump float;
 
 			// our texture
-			uniform sampler2D u_image;
+			uniform sampler2D uImage;
 
 			// the texCoords passed in from the vertex shader.
-			varying vec2 v_texCoord;
+			varying vec2 vTexturePosition;
 
 			void main() {
-			   gl_FragColor = texture2D(u_image, v_texCoord);
+				gl_FragColor = texture2D(uImage, vTexturePosition);
 			}
 		</script>
 
 
 		<script type="text/javascript">
-			var canvas, gl;
-			var vertexShader, fragmentShader;
-			var program, texCoordBuffer;
-			var texCoordLocation, positionLocation;
-			var texture;
-			var texCoordBuffer, buffer;
-			var image;
+			var canvas = null, gl = null;
+			var vertexShader = null, fragmentShader = null;
+			var glProgram = null, texturePositionBuffer = null;
+			var texCoordLocation = null, positionLocation = null;
+			var texture = null;
+			var texturePositionBuffer = null, polygonVertexPositionBuffer = null;
+			var image = null;
 			var texCoord = [], vertices = [];
 
-			function init() {
-				// Get A WebGL context
-				canvas = document.getElementById("test-canvas");
-				canvas.width = window.innerWidth;
-				canvas.height = window.innerHeight;
-
-				gl = canvas.getContext("experimental-webgl");
-				if (!gl) {
-					return;
-				}
-
+			function initWebGL() {
 				image = new Image();
-				image.src = "texture.png";  // MUST BE SAME DOMAIN!!!
+				image.src = "texture.png";
 				image.onload = function() {
 					initShaders();
 					initBuffers();
@@ -89,65 +79,67 @@
 					alert("Cannot compile fragment shader!");
 				}
 
-				/* create GL program and link shaders */
-				program = gl.createProgram();
+				/* create GL glProgram and link shaders */
+				glProgram = gl.createProgram();
 
-				gl.attachShader(program, vertexShader);
-				gl.attachShader(program, fragmentShader);
+				gl.attachShader(glProgram, vertexShader);
+				gl.attachShader(glProgram, fragmentShader);
 
-				gl.linkProgram(program);
-				if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-					alert("Unable to initialize the shader program.");
+				gl.linkProgram(glProgram);
+				if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+					alert("Unable to initialize the shader glProgram.");
 				}
 
-				//use program
-				gl.useProgram(program);
+				//use glProgram
+				gl.useProgram(glProgram);
 			}
 
 			function initBuffers() {
 				// look up where the vertex data needs to go.
-				positionLocation = gl.getAttribLocation(program, "a_position");
-				texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+				positionLocation = gl.getAttribLocation(glProgram, "aVertexPosition");
+				texCoordLocation = gl.getAttribLocation(glProgram, "aTexturePosition");
 
-				texCoordBuffer = gl.createBuffer();
-				gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+				/* create texture position buffer and populate it */
+				texturePositionBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, texturePositionBuffer);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STATIC_DRAW);
 				gl.enableVertexAttribArray(texCoordLocation);
 				gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 
-				// Create a buffer for the position of the rectangle corners.
-				buffer = gl.createBuffer();
-				gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+				/* create vertex position buffer and populate it */
+				polygonVertexPositionBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, polygonVertexPositionBuffer);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
 				gl.enableVertexAttribArray(positionLocation);
 				gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 			}
 
 			function initTexture() {
-				// Create a texture.
+				/* create a new 2D texture */
 				texture = gl.createTexture();
 				gl.bindTexture(gl.TEXTURE_2D, texture);
 
-				// Set the parameters so we can render any size image.
+				/* image parameter setting */
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-				// Upload the image into the texture.
+				/* upload image to GPU */
 				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 
-				// lookup uniforms
-				var resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-
-				// set the resolution
+				/* setup resolution */
+				var resolutionLocation = gl.getUniformLocation(glProgram, "uResolution");
 				gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
 			}
 
 			function drawScene() {
+				/* clear screen */
+				gl.viewport(0, 0, canvas.width, canvas.height);
+				gl.clearColor(0.0, 0.0, 0.0, 1.0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
 
-				// Draw the rectangle.
+				/* draw from buffer */
 				gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length/3);
 			}
 
@@ -156,15 +148,24 @@
 				if (!file) {
 					return;
 				}
+				
 				vertices = [];
 				texCoord = [];
+
+				/* create a new file reader */
 				var reader = new FileReader();
 				reader.onload = function(e) {
 					var j=0;
+					
+					/* split content file */
 					var content = e.target.result.split(",");
+
+					/* read strings and convert them to float */
 					for(var i=0; i<content.length; i++) {
 						vertices.push(parseFloat(content[i]));
 					}
+
+					/* look for the corresponding coordinate on the texture */
 					for(var i=0; i<vertices.length; i++) {
 						if(j==2) {
 							j=0;
@@ -173,21 +174,31 @@
 						texCoord.push((vertices[i]+1)/2);
 						j++;
 					}
-					console.log(vertices);
-					console.log(texCoord);
-					init();
+
+					/* start the program */
+					initWebGL();
 				};
 				reader.readAsText(file);
 			}
 
-			function signalHandlers() {
-				document.getElementById('file-input').addEventListener('change', fileUploadHandler, false);
+			function init() {
+				// Get A WebGL context
+				canvas = document.getElementById("test-canvas");
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight * 0.95;
+
+				gl = canvas.getContext("experimental-webgl");
+				if (!gl) {
+					return;
+				}
+
+				document.getElementById("file-input").addEventListener("change", fileUploadHandler, false);
 			}
 
 		</script>
 	</head>
-	<body onload="signalHandlers()">
-		<input type="file" id="file-input" />
+	<body onload="init()">
 		<canvas id="test-canvas"></canvas>
+		<input type="file" id="file-input" />
 	</body>
 </html>
