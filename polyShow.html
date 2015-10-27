@@ -46,23 +46,6 @@
 			var texCoordBuffer, buffer;
 			var image;
 			var texCoord = [], vertices = [];
-			var defaultTexCoord = [
-				[0, 0],
-				[1, 0],
-				[1, 1],
-				[0, 1]
-			];
-				var vertices = [-0.28125,0.5308219178082192,0,-0.3604166666666667,0.023972602739726012,0,-0.27604166666666663,-0.6472602739726028,0,-0.029166666666666674,-0.6575342465753424,0,0.09062499999999996,-0.17465753424657537,0,0.03125,0.46575342465753433,0];
-				var j=0;
-				for(var i=0; i<vertices.length; i++) {
-					if(j==2) {
-						j=0;
-						continue;
-					}
-					texCoord.push((vertices[i]+1)/2);
-					j++;
-				}
-				console.log(texCoord);
 
 			function init() {
 				// Get A WebGL context
@@ -126,9 +109,6 @@
 				positionLocation = gl.getAttribLocation(program, "a_position");
 				texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
 
-				// provide texture coordinates for the rectangle.
-				console.log(texCoord);
-
 				texCoordBuffer = gl.createBuffer();
 				gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STATIC_DRAW);
@@ -168,7 +148,7 @@
 			function drawScene() {
 
 				// Draw the rectangle.
-				gl.drawArrays(gl.TRIANGLE_FAN, 0, 6);
+				gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length/3);
 			}
 
 			function fileUploadHandler(event) {
@@ -176,16 +156,26 @@
 				if (!file) {
 					return;
 				}
+				vertices = [];
+				texCoord = [];
 				var reader = new FileReader();
 				reader.onload = function(e) {
+					var j=0;
 					var content = e.target.result.split(",");
 					for(var i=0; i<content.length; i++) {
 						vertices.push(parseFloat(content[i]));
 					}
-				
+					for(var i=0; i<vertices.length; i++) {
+						if(j==2) {
+							j=0;
+							continue;
+						}
+						texCoord.push((vertices[i]+1)/2);
+						j++;
+					}
 					console.log(vertices);
 					console.log(texCoord);
-					//init();
+					init();
 				};
 				reader.readAsText(file);
 			}
@@ -196,7 +186,7 @@
 
 		</script>
 	</head>
-	<body onload="init()">
+	<body onload="signalHandlers()">
 		<input type="file" id="file-input" />
 		<canvas id="test-canvas"></canvas>
 	</body>
