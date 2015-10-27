@@ -1,7 +1,7 @@
 <!-- Licensed under a BSD license. See license.html for license -->
 <!DOCTYPE html>
 <html>
-<head>
+	<head>
 		<style>
 			body {
 				margin: 0;
@@ -9,187 +9,195 @@
 			}
 		</style>
 
+		<script id="shader-vs" type="x-shader/x-vertex">
+			attribute vec3 a_position;
+			attribute vec2 a_texCoord;
+			uniform vec2 u_resolution;
+			varying vec2 v_texCoord;
 
-<!-- vertex shader -->
-<script id="shader-vs" type="x-shader/x-vertex">
-	attribute vec2 a_position;
-	attribute vec2 a_texCoord;
+			void main() {
+				gl_Position = vec4(a_position, 1.0);
+				v_texCoord = a_texCoord;
+				gl_PointSize = 10.0;
+			}
+		</script>
 
-	uniform vec2 u_resolution;
+		<script id="shader-fs" type="x-shader/x-fragment">
+			precision mediump float;
 
-	varying vec2 v_texCoord;
+			// our texture
+			uniform sampler2D u_image;
 
-	void main() {
-	   // convert the rectangle from pixels to 0.0 to 1.0
-	   vec2 zeroToOne = a_position / u_resolution;
+			// the texCoords passed in from the vertex shader.
+			varying vec2 v_texCoord;
 
-	   // convert from 0->1 to 0->2
-	   vec2 zeroToTwo = zeroToOne * 2.0;
-
-	   // convert from 0->2 to -1->+1 (clipspace)
-	   vec2 clipSpace = zeroToTwo - 1.0;
-
-	   gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-
-	   // pass the texCoord to the fragment shader
-	   // The GPU will interpolate this value between points.
-	   v_texCoord = a_texCoord;
-	}
-</script>
-
-<!-- fragment shader -->
-<script id="shader-fs" type="x-shader/x-fragment">
-	precision mediump float;
-
-	// our texture
-	uniform sampler2D u_image;
-
-	// the texCoords passed in from the vertex shader.
-	varying vec2 v_texCoord;
-
-	void main() {
-	   gl_FragColor = texture2D(u_image, v_texCoord);
-	}
-</script>
+			void main() {
+			   gl_FragColor = texture2D(u_image, v_texCoord);
+			}
+		</script>
 
 
-<script type="text/javascript">
-	var canvas, gl;
-	var vertexShader, fragmentShader;
-	var program, texCoordBuffer;
-	var texCoordLocation, positionLocation;
-	var texture;
-	var texCoordBuffer, buffer;
-	var image;
+		<script type="text/javascript">
+			var canvas, gl;
+			var vertexShader, fragmentShader;
+			var program, texCoordBuffer;
+			var texCoordLocation, positionLocation;
+			var texture;
+			var texCoordBuffer, buffer;
+			var image;
+			var texCoord = [], vertices = [];
+			var defaultTexCoord = [
+				[0, 0],
+				[1, 0],
+				[1, 1],
+				[0, 1]
+			];
+				var vertices = [-0.28125,0.5308219178082192,0,-0.3604166666666667,0.023972602739726012,0,-0.27604166666666663,-0.6472602739726028,0,-0.029166666666666674,-0.6575342465753424,0,0.09062499999999996,-0.17465753424657537,0,0.03125,0.46575342465753433,0];
+				var j=0;
+				for(var i=0; i<vertices.length; i++) {
+					if(j==2) {
+						j=0;
+						continue;
+					}
+					texCoord.push((vertices[i]+1)/2);
+					j++;
+				}
+				console.log(texCoord);
 
-	function init() {
-		// Get A WebGL context
-		canvas = document.getElementById("test-canvas");
-		canvas.width = window.innerWidth;
-		canvas.height = window.innerHeight;
+			function init() {
+				// Get A WebGL context
+				canvas = document.getElementById("test-canvas");
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
 
-		gl = canvas.getContext("experimental-webgl");
-		if (!gl) {
-			return;
-		}
+				gl = canvas.getContext("experimental-webgl");
+				if (!gl) {
+					return;
+				}
 
-		image = new Image();
-		image.src = "texture.png";  // MUST BE SAME DOMAIN!!!
-		image.onload = function() {
-			initShaders();
-			initBuffers();
-			initTexture();
-			drawScene();
-		}
-	}
+				image = new Image();
+				image.src = "texture.png";  // MUST BE SAME DOMAIN!!!
+				image.onload = function() {
+					initShaders();
+					initBuffers();
+					initTexture();
+					drawScene();
+				}
+			}
 
-	function initShaders() {
-		/* create vertex and fragment shaders */
-		vertexShader = gl.createShader(gl.VERTEX_SHADER);
-		fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+			function initShaders() {
+				/* create vertex and fragment shaders */
+				vertexShader = gl.createShader(gl.VERTEX_SHADER);
+				fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 
-		/* bind shader to glsl */
-		gl.shaderSource(vertexShader, document.getElementById("shader-vs").innerHTML);
-		gl.shaderSource(fragmentShader, document.getElementById("shader-fs").innerHTML);
+				/* bind shader to glsl */
+				gl.shaderSource(vertexShader, document.getElementById("shader-vs").innerHTML);
+				gl.shaderSource(fragmentShader, document.getElementById("shader-fs").innerHTML);
 
-		/* compile and check vertex shader */
-		gl.compileShader(vertexShader);
-		if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-			alert("Cannot compile vertex shader!");
-		}
+				/* compile and check vertex shader */
+				gl.compileShader(vertexShader);
+				if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+					alert("Cannot compile vertex shader!");
+				}
 
-		/* compile and check fragment shader */
-		gl.compileShader(fragmentShader);
-		if(!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-			alert("Cannot compile fragment shader!");
-		}
+				/* compile and check fragment shader */
+				gl.compileShader(fragmentShader);
+				if(!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+					alert("Cannot compile fragment shader!");
+				}
 
-		/* create GL program and link shaders */
-		program = gl.createProgram();
+				/* create GL program and link shaders */
+				program = gl.createProgram();
 
-		gl.attachShader(program, vertexShader);
-		gl.attachShader(program, fragmentShader);
+				gl.attachShader(program, vertexShader);
+				gl.attachShader(program, fragmentShader);
 
-		gl.linkProgram(program);
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-			alert("Unable to initialize the shader program.");
-		}
+				gl.linkProgram(program);
+				if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+					alert("Unable to initialize the shader program.");
+				}
 
-		//use program
-		gl.useProgram(program);
-	}
+				//use program
+				gl.useProgram(program);
+			}
 
-	function initBuffers() {
-		// look up where the vertex data needs to go.
-		positionLocation = gl.getAttribLocation(program, "a_position");
-		texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+			function initBuffers() {
+				// look up where the vertex data needs to go.
+				positionLocation = gl.getAttribLocation(program, "a_position");
+				texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
 
-		// provide texture coordinates for the rectangle.
-		var texCoord = [
-			0.0,  0.0,
-			1.0,  0.0,
-			0.0,  1.0,
-			0.0,  1.0,
-			1.0,  0.0,
-			1.0,  1.0
-		];
+				// provide texture coordinates for the rectangle.
+				console.log(texCoord);
 
-		texCoordBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STATIC_DRAW);
-		gl.enableVertexAttribArray(texCoordLocation);
-		gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+				texCoordBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoord), gl.STATIC_DRAW);
+				gl.enableVertexAttribArray(texCoordLocation);
+				gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 
-		// Create a buffer for the position of the rectangle corners.
-		buffer = gl.createBuffer();
-		var vertices = [
-			0.0, 0.0,
-			0.0, canvas.height,
-			canvas.width, 0.0,
-			0.0, canvas.height,
-			canvas.width, canvas.height,
-			canvas.width, 0.0,
-		];
+				// Create a buffer for the position of the rectangle corners.
+				buffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+				gl.enableVertexAttribArray(positionLocation);
+				gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+			}
 
-		gl.enableVertexAttribArray(positionLocation);
-		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-	}
+			function initTexture() {
+				// Create a texture.
+				texture = gl.createTexture();
+				gl.bindTexture(gl.TEXTURE_2D, texture);
 
-	function initTexture() {
-		// Create a texture.
-		texture = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, texture);
+				// Set the parameters so we can render any size image.
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-		// Set the parameters so we can render any size image.
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				// Upload the image into the texture.
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 
-		// Upload the image into the texture.
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+				// lookup uniforms
+				var resolutionLocation = gl.getUniformLocation(program, "u_resolution");
 
-		// lookup uniforms
-		var resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+				// set the resolution
+				gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+			}
 
-		// set the resolution
-		gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-	}
+			function drawScene() {
 
-	function drawScene() {
+				// Draw the rectangle.
+				gl.drawArrays(gl.TRIANGLE_FAN, 0, 6);
+			}
 
-		// Draw the rectangle.
-		gl.drawArrays(gl.TRIANGLE_FAN, 0, 6);
-	}
+			function fileUploadHandler(event) {
+				var file = event.target.files[0];
+				if (!file) {
+					return;
+				}
+				var reader = new FileReader();
+				reader.onload = function(e) {
+					var content = e.target.result.split(",");
+					for(var i=0; i<content.length; i++) {
+						vertices.push(parseFloat(content[i]));
+					}
+				
+					console.log(vertices);
+					console.log(texCoord);
+					//init();
+				};
+				reader.readAsText(file);
+			}
 
-</script>
-</head>
+			function signalHandlers() {
+				document.getElementById('file-input').addEventListener('change', fileUploadHandler, false);
+			}
+
+		</script>
+	</head>
 	<body onload="init()">
+		<input type="file" id="file-input" />
 		<canvas id="test-canvas"></canvas>
 	</body>
 </html>
-
-
